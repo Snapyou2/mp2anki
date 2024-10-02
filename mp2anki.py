@@ -67,7 +67,11 @@ def transcribe_audio(audio_file_path):
     )
     os.system(whisper_command)
     with open(transcript_file_path, "r") as f:
-        return f.read()
+        transcript = f.read()
+
+    # Remove unwanted information (such as timestamps and Whisper progress) using regex
+    transcript = re.sub(r"\]0;.*?audio seconds/s ", "", transcript)
+    transcript = re.sub(r"\[.*?\] ", "", transcript)
 
 def extract_anki_cards(response_text):
     """Extracts the Anki flashcard list from the Gemini response.
