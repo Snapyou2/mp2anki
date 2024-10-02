@@ -1,6 +1,6 @@
 # mp2anki : Audio lesson summarizer and anki cards generator
 
-This Python script automatically transcribes audio recordings of lessons (e.g., lectures, podcasts), generates summaries, and creates Anki flashcards for key vocabulary terms using the Google Gemini API and the FasterWhisper speech-to-text model.
+This Python script automatically transcribes audio/video recordings of lessons (e.g., lectures, podcasts), generates summaries, and creates Anki flashcards for key vocabulary terms using the Google Gemini API and the FasterWhisper speech-to-text model. Fire & Forget, you can just throw multiple recordings and get your files at the end.
 
 ## Features
 
@@ -51,8 +51,8 @@ This Python script automatically transcribes audio recordings of lessons (e.g., 
    - For each audio file, it will:
      - Transcribe the audio using Whisper.
      - Generate Anki flashcards and a lesson summary using the Gemini API.
-     - Save the Anki flashcards to a file named `Anki_[media_filename].txt`.
-     - Save the lesson summary and its key concepts to revise to a file named `Summary_key_concepts_[media_filename].md`. 
+     - Save the Anki flashcards to a file named `Anki_[recording_filename].txt`.
+     - Save the lesson summary and its key concepts to revise to a file named `Summary_key_concepts_[recording_filename].md`. 
 
 ## Notes
 
