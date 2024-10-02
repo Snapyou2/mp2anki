@@ -69,9 +69,13 @@ def transcribe_audio(audio_file_path):
     with open(transcript_file_path, "r") as f:
         transcript = f.read()
 
-    # Remove unwanted information (such as timestamps and Whisper progress) using regex
-    transcript = re.sub(r"\]0;.*?audio seconds/s ", "", transcript)
-    transcript = re.sub(r"\[.*?\] ", "", transcript)
+    # Remove unwanted information (timestamps and progress) using regex
+    transcript = re.sub(r"\[.*?\]", "", transcript)
+    transcript = re.sub(r"\]0;.*?audio seconds/s", "", transcript)
+    transcript = re.sub(r"Transcription speed:.*", "", transcript)
+    transcript = re.sub(r"Subtitles are written to.*", "", transcript)
+    transcript = transcript.strip()
+    return transcript
 
 def extract_anki_cards(response_text):
     """Extracts the Anki flashcard list from the Gemini response.
@@ -121,7 +125,7 @@ def process_audio(audio_file):
 
     # Retry mechanism for API calls
     max_retries = 3  # Maximum number of retries
-    retry_delay = 5  # Seconds to wait between retries
+    retry_delay = 30  # Seconds to wait between retries
 
     for attempt in range(max_retries):
         try:
