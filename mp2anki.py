@@ -148,7 +148,12 @@ def process_audio(audio_file):
     with open(summary_file_path, "w") as f:
         f.write(summary)
     print(f"Summary saved to: {summary_file_path}")
-
+   
+    # Print Gemini response
+    print("\n--- Gemini API Response ---\n")
+    print(response.text)
+    print("\n--- End of Gemini API Response ---\n")
+   
     print(f"Finished processing: {audio_file}\n")
 
 # --- Main Execution ---
