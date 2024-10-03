@@ -18,8 +18,7 @@ This Python script automatically transcribes audio/video recordings of lessons (
   pip install google-generativeai
   ```
   or preferably in a virtual python environment
-- **FasterWhisper:** A fast and accurate speech-to-text model. Follow the installation instructions from the official repository:
-  [https://github.com/SYSTRAN/faster-whisper](https://github.com/SYSTRAN/faster-whisper)
+- **FasterWhisperXXL:** A fast and accurate speech-to-text model. Follow the installation instructions from the official repository: [https://github.com/Purfview/whisper-standalone-win](https://github.com/Purfview/whisper-standalone-win)
 - **ffmpeg:** Used by Whisper. Install on Debian-based systems with : 
   ```bash
   sudo apt update && sudo apt install ffmpeg
