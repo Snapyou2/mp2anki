@@ -5,10 +5,10 @@ import time
 import google.generativeai as genai
 
 # --- Configuration ---
-MAIN_DIR = "/home/snap/Documents/UNIGE/AIStudio_analysis/"  # Where this script is and where you will put lessons files
-LOCATION = "/home/snap/Code_Sysadmin/Faster-Whisper-XXL_r192.3.1_linux/Whisper-Faster-XXL//whisper-faster-xxl"
-API_KEY = "AIzaSyAeCX0VSOtC7tPONe3bUVVSKMWOri0UFI4"  # Google AI Studio API key
-PROJECT_ID = "vertexai-aiplatform-26125047631"  # When you create an API key
+MAIN_DIR = ""  # Where this script is and where you will put lessons files
+LOCATION = "" # Your Faster-whisper model location
+API_KEY = ""  # Google AI Studio API key
+PROJECT_ID = ""  # When you create an API key
 MODEL_NAME = "gemini-1.5-pro-exp-0827"  # You can change that for newer models
 
 # Configure Google AI Platform
