@@ -1,0 +1,11 @@
+
+Overdraft Charges: Fees charged by banks when an account balance goes below zero.
+Overdraft Fees: Fees specifically for transactions that cause an overdraft.
+Flat Fees (Overdraft): A fixed fee charged per overdraft transaction (e.g., $35).
+Daily Fees (Overdraft): An additional fee charged each day an account remains overdrawn (e.g., $5-$10).
+Extended Overdraft Fees: Fees for accounts that stay overdrawn for an extended period.
+Sustained Overdraft Fees: A fee applied after an account remains overdrawn for a specific duration (e.g., 5-7 days).
+Non-Sufficient Funds (NSF) Fees: Fees charged when a transaction is declined due to insufficient funds.
+Overdraft Protection: A service that automatically covers overdrafts, often from a linked account.
+Overdraft Protection Transfer Fees: Fees charged for transferring funds to cover an overdraft using overdraft protection.
+
