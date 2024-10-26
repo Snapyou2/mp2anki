@@ -1,34 +1,33 @@
 import os
 import re
 import json
+import time
 import google.generativeai as genai
 
 # --- Configuration ---
-MAIN_DIR = "path/to/your/main/directory" # Where this script is and where you will put lessons files
-LOCATION = "path/to/your/FasterWhisper/script"
-API_KEY = "your_api_key" # Google AI Studio API key
-PROJECT_ID = "your_project_id" # When you create an API key
-MODEL_NAME = "gemini-1.5-pro" # You can change that for newer models
+MAIN_DIR = "/home/snap/Documents/UNIGE/AIStudio_analysis/"  # Where this script is and where you will put lessons files
+LOCATION = "/home/snap/Code_Sysadmin/Faster-Whisper-XXL_r192.3.1_linux/Whisper-Faster-XXL//whisper-faster-xxl"
+API_KEY = "AIzaSyAeCX0VSOtC7tPONe3bUVVSKMWOri0UFI4"  # Google AI Studio API key
+PROJECT_ID = "vertexai-aiplatform-26125047631"  # When you create an API key
+MODEL_NAME = "gemini-1.5-pro-exp-0827"  # You can change that for newer models
 
 # Configure Google AI Platform
 genai.configure(api_key=API_KEY)
 
 # --- Prompt Template ---
-# Feel free to modify it if you want to
 PROMPT_TEMPLATE = """
 I made this recording of a lesson and transcribed it with Whisper.
 
-Please make a list of all the vocabulary terms that I need to revise and 
-understand for my first year of neurosciences. Present them as an Anki 
-flashcard list of the vocabulary terms with the explanation for each term 
+Please make a list of all the vocabulary terms that I need to revise and
+understand for my first year of neurosciences. Present them as an Anki
+flashcard list of the vocabulary terms with the explanation for each term
 that I can import into Anki as a txt.
 
 Also create a list of all the useful topics to revise in this lesson.
 
 Then make a nice complete resume/summary of this lesson. Do NOT forget important topics.
 
-Here is an nice example of correct answer (keep the exact same format for 
-the Anki list, without useless line breaks) :
+Here is an example of the correct answer format (keep this exact format for the Anki list, without useless line breaks):
 
 ## Anki Flashcard List:
 White matter: Brain tissue composed primarily of myelinated axons, responsible for fast transmission of information.
@@ -36,137 +35,193 @@ Gray matter: Brain tissue composed primarily of neuronal cell bodies, responsibl
 ... (rest of the example Anki list) ...
 
 ## Lesson Summary:
-This lesson delves into the intricate microarchitecture of the human brain... 
+This lesson delves into the intricate microarchitecture of the human brain...
 ... (rest of the example summary) ...
 
 ## Useful Topics to Revise:
 * **Microarchitecture of the human brain:**
     * White matter vs. gray matter
-    ... (rest of the example topics) ...
+... (rest of the example topics) ...
 
-Here is the transcription text :
+Here is the transcription text:
 
 [insert transcription text from whisper here]
 """
 
 # --- Functions ---
 
+
 def transcribe_audio(audio_file_path):
-    """Transcribes an audio file using Whisper.
-
-    Args:
-        audio_file_path: The path to the audio file.
-
-    Returns:
-        The transcribed text as a string.
-    """
+    """Transcribes an audio file using Whisper."""
     transcript_file_path = os.path.splitext(audio_file_path)[0] + ".txt"
-    whisper_command = (
-        f"{LOCATION} {audio_file_path} "
-        f"--output_format txt --language en > {transcript_file_path}"
-    )
-    os.system(whisper_command)
-    with open(transcript_file_path, "r") as f:
-        transcript = f.read()
+    try:
+        whisper_command = f"{LOCATION} {audio_file_path} --output_format txt --language en > {transcript_file_path}"
+        os.system(whisper_command)
+        with open(transcript_file_path, "r") as f:
+            transcript = f.read()
 
-    # Remove unwanted information (timestamps and progress) using regex
-    transcript = re.sub(r"\[.*?\]", "", transcript)
-    transcript = re.sub(r"\]0;.*?audio seconds/s", "", transcript)
-    transcript = re.sub(r"Transcription speed:.*", "", transcript)
-    transcript = re.sub(r"Subtitles are written to.*", "", transcript)
-    transcript = transcript.strip()
-    return transcript
+        # Remove unwanted information (timestamps and progress) using regex
+        transcript = re.sub(r"\[.*?\]", "", transcript)
+        transcript = re.sub(r"\]0;.*?audio seconds/s", "", transcript)
+        transcript = re.sub(r"Transcription speed:.*", "", transcript)
+        transcript = re.sub(r"Subtitles are written to.*", "", transcript)
+        transcript = transcript.strip()
+        return transcript
+    except FileNotFoundError:
+        print(f"Error: Whisper executable not found at {LOCATION}")
+        return None
+    except Exception as e:
+        print(f"Error during Whisper transcription: {e}")
+        return None
 
-def extract_anki_cards(response_text):
-    """Extracts the Anki flashcard list from the Gemini response.
 
-    Args:
-        response_text: The full text of the Gemini response.
+def extract_information(response):
+    """Extracts Anki cards and summary+topics from the Gemini response."""
+    if response and response.candidates:
+        for candidate in response.candidates:
+            # Prioritize accessing text content using different methods
+            if hasattr(candidate, "content"):
+                text = str(candidate.content)
+            elif hasattr(candidate, "text"):
+                text = str(candidate.text)
+            elif hasattr(candidate, "output") and isinstance(candidate.output, str):
+                try:
+                    # Attempt to parse JSON-like output (if any)
+                    data = json.loads(candidate.output)
+                    if "candidates" in data and data["candidates"]:
+                        text = data["candidates"][0].get("content", "")  # Get 'content' safely
+                    else:
+                        text = ""  # No usable content found in JSON
+                except json.JSONDecodeError:
+                    print("Warning: Could not parse candidate.output as JSON.")
+                    text = ""
+            else:
+                print("Warning: Candidate object has no usable text attribute.")
+                return None, None
 
-    Returns:
-        The Anki flashcard list as a string.
-    """
-    start_marker = "## Anki Flashcard List:"
-    end_marker = "## Lesson Summary:"
-    start_index = response_text.find(start_marker) + len(start_marker)
-    end_index = response_text.find(end_marker)
-    anki_text = response_text[start_index:end_index].strip()
-    # Remove bold markers and extra whitespace
-    anki_text = re.sub(r'\*\*(.*?)\*\*', r'\1', anki_text) 
-    return anki_text
+            # Extract sections using markers (more robust to changes)
+            anki_cards = extract_section(text, "## Anki Flashcard List:", "## Lesson Summary:")
+            summary_and_topics = extract_section(text, "## Lesson Summary:", None)  # Extract to the end
 
-def extract_summary(response_text):
-    """Extracts the lesson summary from the Gemini response.
+            # Extract the title (assuming it's the first line before "## Anki Flashcard List:")
+            title = text.split("## Anki Flashcard List:")[0].strip()
 
-    Args:
-        response_text: The full text of the Gemini response.
+            # Prepend the title to the summary_and_topics
+            summary_and_topics = f"# {title}\n\n{summary_and_topics}"
 
-    Returns:
-        The lesson summary as a string.
-    """
-    start_marker = "## Lesson Summary:"
-    start_index = response_text.find(start_marker) + len(start_marker)
-    return response_text[start_index:].strip()
+            # Remove content after the last "}" in summary_and_topics (if present)
+            last_brace_index = summary_and_topics.rfind("}")
+            if last_brace_index != -1:
+                summary_and_topics = summary_and_topics[: last_brace_index + 1]
+
+            # Replace \n with newline characters in all sections
+            if anki_cards:
+                anki_cards = anki_cards.replace("\\n", "\n").replace("*", "")
+            if summary_and_topics:
+                summary_and_topics = summary_and_topics.replace("\\n", "\n")
+
+            return anki_cards, summary_and_topics
+    return None, None
+
+
+def extract_section(text, start_marker, end_marker):
+    """Extracts a section of text between start and end markers."""
+    start_index = text.find(start_marker)
+    if start_index == -1:
+        print(f"Warning: Start marker '{start_marker}' not found.")
+        return None  # Or an empty string "" if you prefer
+
+    start_index += len(start_marker)
+
+    if end_marker:
+        end_index = text.find(end_marker, start_index)
+        if end_index == -1:
+            print(f"Warning: End marker '{end_marker}' not found.")
+            return text[start_index:].strip()
+        else:
+            return text[start_index:end_index].strip()
+    else:
+        return text[start_index:].strip()
+
 
 def process_audio(audio_file):
-    """Processes a single audio file: transcribes, generates Gemini response, 
-       and saves outputs.
-
-    Args:
-        audio_file: The name of the audio file. 
-    """
     print(f"Processing: {audio_file}")
     audio_file_path = os.path.join(MAIN_DIR, audio_file)
-    transcript = transcribe_audio(audio_file_path)
-    print("Whisper transcript:\n---\n" + transcript + "\n---")
+    transcript_file_path = os.path.splitext(audio_file_path)[0] + ".txt"
+    audio_file_base_name = os.path.splitext(audio_file)[0]
+
+    # Check if transcript already exists
+    if os.path.exists(transcript_file_path):
+        print("Transcript file found. Skipping Whisper transcription.")
+        with open(transcript_file_path, "r") as f:
+            transcript = f.read()
+    else:
+        transcript = transcribe_audio(audio_file_path)  # Assuming you have this function defined
+        if transcript is None:
+            print(f"Skipping {audio_file} due to transcription error.")
+            return
 
     prompt = PROMPT_TEMPLATE.replace("[insert transcription text from whisper here]", transcript)
     model = genai.GenerativeModel(MODEL_NAME)
 
-    # Retry mechanism for API calls
-    max_retries = 3  # Maximum number of retries
-    retry_delay = 30  # Seconds to wait between retries
-
-    for attempt in range(max_retries):
+    for attempt in range(1, 4):  # Retry up to 3 times
         try:
+            print("Sending prompt to Gemini...")
             response = model.generate_content(prompt)
-            break  # Exit the loop if the API call is successful
-        except ResourceExhausted as e:
-            print(f"API call failed with ResourceExhausted error: {e}")
-            if attempt < max_retries - 1:
-                print(f"Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
+            print("Response received. Extracting information...")
+
+            anki_cards, summary_and_topics = extract_information(response)  # Assuming you have this function defined
+
+            if anki_cards is not None and summary_and_topics is not None:
+                # Create output folder
+                output_folder = os.path.join(MAIN_DIR, audio_file_base_name)
+                os.makedirs(output_folder, exist_ok=True)
+
+                # Save Anki cards
+                anki_file_path = os.path.join(output_folder, f"Anki_{audio_file_base_name}.txt")
+                with open(anki_file_path, "w") as f:
+                    f.write(anki_cards)
+                print(f"Anki cards saved to: {anki_file_path}")
+
+                # Save summary and topics
+                summary_topics_file_path = os.path.join(output_folder, f"Summary+Key_concepts_{audio_file_base_name}.md")
+                with open(summary_topics_file_path, "w") as f:
+                    f.write(summary_and_topics)
+                print(f"Summary and key concepts saved to: {summary_topics_file_path}")
+
+                # Save transcript (in the output folder)
+                transcript_file_path = os.path.join(output_folder, f"{audio_file_base_name}_transcript.txt")
+                with open(transcript_file_path, "w") as f:
+                    f.write(transcript)
+                print(f"Transcript saved to: {transcript_file_path}")
+
+                print(f"Finished processing: {audio_file}\n")
+                break  # Exit the loop after a successful attempt
+
             else:
-                print("Maximum retries reached. Skipping this file.")
-                return  # Skip the rest of the processing for this file
+                print("No usable information extracted from Gemini's response.")
 
-    anki_cards = extract_anki_cards(response.text)
-    summary = extract_summary(response.text)
+        except Exception as e:
+            print(f"API error (attempt {attempt}/3): {e}")
+            if attempt < 3:
+                time.sleep(30)  # Wait before retrying
 
-    # Save Anki cards
-    anki_file = "Anki_" + os.path.splitext(audio_file)[0] + ".txt"
-    anki_file_path = os.path.join(MAIN_DIR, anki_file) 
-    with open(anki_file_path, "w") as f:
-        f.write(anki_cards)
-    print(f"Anki cards saved to: {anki_file_path}")
-
-    # Save summary
-    summary_file = "Summary_key_concepts_" + os.path.splitext(audio_file)[0] + ".md"
-    summary_file_path = os.path.join(MAIN_DIR, summary_file)
-    with open(summary_file_path, "w") as f:
-        f.write(summary)
-    print(f"Summary saved to: {summary_file_path}")
-   
-    # Print Gemini response
-    print("\n--- Gemini API Response ---\n")
-    print(response.text)
-    print("\n--- End of Gemini API Response ---\n")
-   
-    print(f"Finished processing: {audio_file}\n")
 
 # --- Main Execution ---
 if __name__ == "__main__":
     for filename in os.listdir(MAIN_DIR):
-        # Check if the file has a supported extension (hardcoded common media formats)
-        if (filename.lower().endswith((".mp3", ".wav", ".mp4", ".m4a", ".aac", ".ogg", ".flac", ".webm", ".mkv", ".m4v"))):
+        if filename.lower().endswith(
+            (
+                ".mp3",
+                ".wav",
+                ".mp4",
+                ".m4a",
+                ".aac",
+                ".ogg",
+                ".flac",
+                ".webm",
+                ".mkv",
+                ".m4v",
+            )
+        ):
             process_audio(filename)
